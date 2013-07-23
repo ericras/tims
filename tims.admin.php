@@ -34,7 +34,7 @@ function tims_edit($form, &$form_state, $hook) {
 function tims_edit_validate($form, &$form_state) {
   $templates = variable_get('tims_templates', array());
   $originalHook = $form_state['complete form']['hook']['#default_value'];
-  $newHook = $form_state['values']['hook'];
+  $newHook = strtr($form_state['values']['hook'], array('-' => '_'));
   if ($originalHook != $newHook && isset($templates[$newHook])) {
     form_set_error('hook', 'This theme hook is already in use.');
   }
@@ -43,7 +43,7 @@ function tims_edit_validate($form, &$form_state) {
 function tims_edit_submit($form, &$form_state) {
   $templates = tims_get_templates();
   $originalHook = $form_state['complete form']['hook']['#default_value'];
-  $newHook = $form_state['values']['hook'];
+  $newHook = strtr($form_state['values']['hook'], array('-' => '_'));
   unset($templates[$originalHook]);
   $templates[$newHook] = $form_state['values']['template'];
   variable_set('tims_templates', $templates);
