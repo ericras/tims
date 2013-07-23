@@ -1,19 +1,18 @@
 <?php
 
-function tims_edit($form, &$form_state, $template_name) {
+function tims_edit($form, &$form_state, $hook) {
   $templates = tims_get_templates();
   $template = '';
-  if (array_key_exists($template_name, $templates)) {
-    $template = $templates[$template_name];
+  if (array_key_exists($hook, $templates)) {
+    $template = $templates[$hook];
   }
 
-  $form['name'] = array(
+  $form['hook'] = array(
     '#type' => 'textfield',
-    '#title' => 'Name',
-    '#default_value' => ($template_name != '_new_' ? $template_name : NULL),
-    '#description' => t('The theme key for this template. See <a href="@link">Working with template suggestions</a>.', array('@link' => url('https://drupal.org/node/223440'))),
+    '#title' => 'Theme Hook',
+    '#default_value' => ($hook != '_new_' ? $hook : NULL),
+    '#description' => t('The theme hook for this template. See <a href="@link">Working with template suggestions</a>.', array('@link' => url('https://drupal.org/node/223440'))),
     '#required' => TRUE,
-    '#disabled' => ($template_name != '_new_'),
   );
 
   $form['template'] = array(
@@ -32,22 +31,41 @@ function tims_edit($form, &$form_state, $template_name) {
   return $form;
 }
 
-function tims_edit_submit($form, &$form_state) {
-  $templates = tims_get_templates();
-  $templates[$form_state['values']['name']] = $form_state['values']['template'];
-  variable_set('tims_templates', $templates);
-  $form_state['redirect'] = 'admin/structure/tims';
+function tims_edit_validate($form, &$form_state) {
+  $templates = variable_get('tims_templates', array());
+  $originalHook = $form_state['complete form']['hook']['#default_value'];
+  $newHook = $form_state['values']['hook'];
+  if ($originalHook != $newHook && isset($templates[$newHook])) {
+    form_set_error('hook', 'This theme hook is already in use.');
+  }
 }
 
-function tims_delete($form, &$form_state, $template_name) {
-  $form['name'] = array(
+function tims_edit_submit($form, &$form_state) {
+  $templates = tims_get_templates();
+  $originalHook = $form_state['complete form']['hook']['#default_value'];
+  $newHook = $form_state['values']['hook'];
+  unset($templates[$originalHook]);
+  $templates[$newHook] = $form_state['values']['template'];
+  variable_set('tims_templates', $templates);
+  $form_state['redirect'] = 'admin/structure/tims';
+
+  if ($originalHook) {
+    drupal_set_message('Template for theme hook "' . $newHook . '" saved.');
+  }
+  else {
+    drupal_set_message('Template for theme hook "' . $newHook . '" created.');
+  }
+}
+
+function tims_delete($form, &$form_state, $hook) {
+  $form['hook'] = array(
     '#type' => 'hidden',
-    '#value' => $template_name,
+    '#value' => $hook,
   );
 
   return confirm_form(
     $form,
-    t('Are you sure you want to delete the template for "%tn"?', array('%tn' => $template_name)),
+    t('Are you sure you want to delete the template for "%tn"?', array('%tn' => $hook)),
     'admin/structure/tims',
     t('This action cannot be undone.'),
     t('Delete Template')
@@ -55,17 +73,20 @@ function tims_delete($form, &$form_state, $template_name) {
 }
 
 function tims_delete_submit($form, &$form_state) {
+  $hook = $form_state['values']['hook'];
   $templates = tims_get_templates();
-  unset($templates[$form_state['values']['name']]);
+  unset($templates[$hook]);
   variable_set('tims_templates', $templates);
   $form_state['redirect'] = 'admin/structure/tims';
+
+  drupal_set_message('Template for theme hook "' . $hook . '" deleted.');
 }
 
 function tims_list($form, &$form_state) {
   $header = array(
-    'name' => array(
-      'data' => t('Name'),
-      'field' => 'name',
+    'hook' => array(
+      'data' => t('Hook'),
+      'field' => 'hook',
     ),
     'operations' => t('Operations'),
   );
@@ -73,20 +94,20 @@ function tims_list($form, &$form_state) {
   $templates = tims_get_templates();
 
   $rows = array();
-  foreach ($templates as $name => $template) {
-    $rows[$name] = array(
-      'name' => $name,
+  foreach ($templates as $hook => $template) {
+    $rows[$hook] = array(
+      'hook' => $hook,
       'operations' => array(
         'data' => array(
           '#theme' => 'links__node_operations',
           '#links' => array(
             'edit' => array(
               'title' => t('edit'),
-              'href' => 'admin/structure/tims/' . $name . '/edit',
+              'href' => 'admin/structure/tims/' . $hook . '/edit',
             ),
             'delete' => array(
               'title' => t('delete'),
-              'href' => 'admin/structure/tims/' . $name . '/delete',
+              'href' => 'admin/structure/tims/' . $hook . '/delete',
             ),
           ),
           '#attributes' => array('class' => array('links', 'inline')),
